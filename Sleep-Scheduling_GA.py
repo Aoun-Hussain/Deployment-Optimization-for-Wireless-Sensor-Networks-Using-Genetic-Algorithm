@@ -3,10 +3,10 @@ import networkx as nx;
 from networkx.algorithms.approximation.steinertree import steiner_tree
 
 Rad = 15                    ## communication radius of a node
-g = 400                     ## cardinality of total sensors in the network
+g = 600                     ## cardinality of total sensors in the network
 B_SR = 100                  ## Bandwidth between sensor and relay
-S_Per_R = 300               ## total sensors per relay
-Relay_constraint = 35       ## total relays to be deployed
+S_Per_R = 600               ## total sensors per relay
+Relay_constraint = 40       ## total relays to be deployed
 Sensor_list = []            ## list of sensors
 Relay_list = []             ## list of relays
 N_R_R_Diction = {}          ## dictionary to show relay-relay connectivity  
@@ -176,17 +176,17 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
             individual = []                         ## list for an offsprings characteristics
             SR_relation = []                        ## list for the sensr-relay relation of an offsprings characteristics
             RR_relation = []                        ## list for the relay-relay relation of an offsprings characteristics
-            relay_record = []                       ## a list to maintain the record of activated relays in the sensr-relay relation of an offsprings characteristics
+            relay_record = set()                    ## a list to maintain the record of activated relays in the sensr-relay relation of an offsprings characteristics
             
             for i in range(len(Sensor_list)):       ## generating sensor-relay characteristics for an individual 
                 lst = [0 for i in range(len(Relay_list))]
                 rand = random.choice(N_S_R_Diction[i])
                 if (rand) not in relay_record:
-                    relay_record.append(rand)
+                    relay_record.add(rand)
                 lst[rand] = 1
                 SR_relation.append(lst)
                 
-            for i in range(len(Relay_list)):        ## generating sensor-relay characteristics for an individual
+            for i in range(len(Relay_list)):        ##generating relay-relay characteristics for an individual
                 lst = [0 for i in range(len(Relay_list))]
                 RR_relation.append(lst)                
             for i in relay_record:
@@ -207,27 +207,23 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
         
     def criteria(lst):
             '''
-            a function that checks whether the given individual follows the pattern or not.
+            a function that checks whether the given individual avoids the hotspot problem
+            and satisfies the relay constraint
             '''
-            total_linkflow = 0                      ## a variable showing the total linkflow 
+            total_linkflow = 0                      ##a variable showing the total linkflow 
             relays_deployed = set()
             lst_SR = lst[0]
             lst_RR = lst[1]
             
-            linkflow_list_record = []
             for i in range(len(Relay_list)):
                 for j in range(len(Sensor_list)):
                     if lst_SR[j][i] == 1:
                         total_linkflow += l_s_r[j][i]
                         relays_deployed.add(i)
-                linkflow_list_record.append(total_linkflow)
                 if total_linkflow > B_SR * S_Per_R:
                     return False
                 total_linkflow=0
             
-                ##max_linkflow = max(linkflow_list_record)
-                ##relay_number = linkflow_list_record.index(max_linkflow)
-                ##print("Relay Number : ", relay_number, "Max Linkflow : ",max_linkflow,"Sensors connected : ",max_linkflow/100)
             if len(relays_deployed) > Relay_constraint:
                 return False
             return True
@@ -236,7 +232,7 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
             '''
             this function tell us the maximum number of sensor per relay.
             '''
-            total_linkflow = 0                      ## a variable showing the total linkflow 
+            total_linkflow = 0                      ##a variable showing the total linkflow 
             relays_deployed = set()
             lst_SR = lst[0]
             lst_RR = lst[1]
@@ -250,12 +246,12 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
                 if total_linkflow > B_SR * S_Per_R:
                     return False
                     break
-                total_linkflow=0
+                total_linkflow = 0
             
             max_linkflow = max(linkflow_list_record)
             relay_number = linkflow_list_record.index(max_linkflow)
             print("Maximum number of sensors per relay")
-            print("Relay Number : ", relay_number, " Max Linkflow : ",max_linkflow ," Sensors connected : ",max_linkflow/100)
+            print("Relay Number : ", relay_number, ", Max Linkflow : ",max_linkflow ,", Sensors connected : ",max_linkflow/B_SR)
             
 
     def evaluate(individual):
@@ -267,16 +263,16 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
             lst_SR = individual[0]
             lst_RR = individual[1]
             
-            if not criteria(individual):            ## condition to check if a individual meets the criteria 
+            if not criteria(individual):            ##condition to check if a individual meets the criteria 
                 return float('inf')
             else:
                 diction = {}
-                for i in range(len(lst_SR)):        ## calculates the energy between sensor-relay communication
+                for i in range(len(lst_SR)):        ##calculates the energy between sensor-relay communication
                     for j in range(len(lst_SR[0])):
                         if lst_SR[i][j] == 1 and N_S_R[i][j] == 1:
                             ga_energy += e_s_r[i][j]
 
-                for i in range(len(lst_RR)):        ## calculates the energy between relay-relay communication
+                for i in range(len(lst_RR)):        ##calculates the energy between relay-relay communication
                     for j in range(len(lst_RR[0])):
                         if lst_RR[i][j] == 1 and N_R_R[i][j] ==1:
                             ga_energy += e_r_r[i][j]/2
@@ -286,10 +282,11 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
     def crossover(individual_1,individual_2):
             '''
             the purpose of this function is to crossover between two lists i.e. two individuals
+            maintaining the pattern produced during offspring production
             '''
             rand = random.randint(1,len(individual_1[0])-1)
-            relay_record_1 =[]
-            relay_record_2 =[]
+            relay_record_1 = set()
+            relay_record_2 = set()
             
             lst_SR_1 = individual_1[0]
             lst_SR_2 = individual_2[0]
@@ -297,13 +294,13 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
             temp_RR_1 = []
             temp_RR_2 = []
             
-            temp_SR_1 = copy.deepcopy(lst_SR_1[0:rand] + lst_SR_2[rand:]) 
+            temp_SR_1 = copy.deepcopy(lst_SR_1[0:rand] + lst_SR_2[rand:]) ###Cross over the sensor-relay part of the individual
             temp_SR_2 = copy.deepcopy(lst_SR_2[0:rand] + lst_SR_1[rand:])
 
-            for i in range(len(temp_SR_1)):
+            for i in range(len(temp_SR_1)):                               ##generating the relay-relay part of the individual
                 for j in range(len(temp_SR_1[0])):
                     if temp_SR_1[i][j] == 1:
-                        relay_record_1.append(j)
+                        relay_record_1.add(j)
 
             for i in range(len(Relay_list)):
                 lst = [0 for i in range(len(Relay_list))]
@@ -318,7 +315,7 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
             for i in range(len(temp_SR_2)):
                 for j in range(len(temp_SR_2[0])):
                     if temp_SR_2[i][j] == 1:
-                        relay_record_2.append(j)
+                        relay_record_2.add(j)
 
             for i in range(len(Relay_list)):
                 lst = [0 for i in range(len(Relay_list))]
@@ -343,17 +340,18 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
 
     def mutate(lst):
             '''
-            this function mutates i.e. changes the position of 1 in the given individual.
+            this function mutates i.e. changes the position of 1 in the given individual
+            maintaining the pattern produced during offspring production
             '''
             set_of_relays = set()
             Mutated_lst = []
             lst_SR = lst[0]
             lst_RR = lst[1]
-            relay_record = []
+            relay_record = set()
             breaked = False
-            for i in range(len(lst_SR)):                    #Mutating the sensor-relay part of the individual 
+            for i in range(len(lst_SR)):                    ##Mutating the sensor-relay part of the individual 
                 breaked = False
-                for j  in N_S_R_Diction[i]:
+                for j in N_S_R_Diction[i]:
                     if j in set_of_relays:
                         lst_SR[i][lst_SR[i].index(1)], lst_SR[i][j] = 0,1
                         breaked = True
@@ -363,10 +361,10 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
                     lst_SR[i][lst_SR[i].index(1)], lst_SR[i][rand] = 0,1
                     set_of_relays.add(rand)
 
-            for i in range(len(lst_SR)):
+            for i in range(len(lst_SR)):                    ##generating the relay-relay part of the individual
                 for j in range(len(lst_SR[0])):
                     if lst_SR[i][j] == 1:
-                        relay_record.append(j)
+                        relay_record.add(j)
 
             for i in range(len(Relay_list)):
                 lst = [0 for i in range(len(Relay_list))]
