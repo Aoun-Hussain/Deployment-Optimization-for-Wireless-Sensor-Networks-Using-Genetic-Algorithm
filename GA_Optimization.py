@@ -275,7 +275,7 @@ def main(Population_size, N_GEN, Mutation_prob, Crossover_prob):
                 for i in range(len(lst_RR)):        ###calculates the energy between relay-relay communication
                     for j in range(len(lst_RR[0])):
                         if lst_RR[i][j] == 1 and N_R_R[i][j] ==1:
-                            ga_energy += e_r_r[i][j]/2
+                            ga_energy += e_r_r[i][j]
                             
                 return ga_energy
 
